@@ -68,13 +68,19 @@ jobs:
 
       - name: Build and Test inside Docker
         run: |
-          # 1. Build the production-ready image
-          docker build -t ghcr.io/${{ github.repository }}:latest .
+          # 1. Create a clean, lowercase tag from your branch name
+          # This turns "dept/ECE" into "dept-ece"
+          SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          IMAGE_ID="ghcr.io/${{ github.repository_owner }}/webeng-ece:$SAFE_TAG"
           
-          # 2. Run your test suite inside the container
-          # Note: If you don't have tests yet, this line might fail. 
-          # You can use 'npm run build' here instead to verify the build works inside Docker.
-          docker run --rm ghcr.io/${{ github.repository }}:latest npm run build
+          echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+          echo "Building image: $IMAGE_ID"
+
+          # 2. Build the production-ready image
+          docker build -t $IMAGE_ID .
+          
+          # 3. Verify it works by running the build command inside
+          docker run --rm $IMAGE_ID npm run build
 
       - name: Run Trivy Security Scanner
         uses: aquasecurity/trivy-action@master
@@ -85,9 +91,8 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Push Docker Image
-        # Only pushes to the registry if we are on our specific branch
         if: github.ref == 'refs/heads/dept/ECE' && success()
-        run: docker push ghcr.io/${{ github.repository }}:latest
+        run: docker push ${{ env.IMAGE_ID }}
 
       - name: Trigger Render Deployment
         if: github.ref == 'refs/heads/dept/ECE' && success()

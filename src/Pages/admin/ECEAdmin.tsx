@@ -20,26 +20,32 @@ import ResizablePagePreview from "../../components/ResizablePagePreview";
 const code = "ECE" as const;
 
 export default function ECEAdminPage() {
-  const [baseDept, setBaseDept] = useState<DepartmentData | null>(null);
-  const [form, setForm] = useState<DepartmentEditableContent | null>(null);
-  const [status, setStatus] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
+// This function calculates the starting data once and only once
+  const [initialData] = useState(() => {
     try {
       const data = getDeptDefaults(code);
       const defaults = extractEditableContent(data);
       const draft = loadDeptDraft(code);
       const overrides = loadDeptOverrides(code);
-
-      setBaseDept(data);
-      setForm(mergeWithShape(defaults, draft ?? overrides));
-      setError("");
+      return {
+        baseDept: data,
+        form: mergeWithShape(defaults, draft ?? overrides),
+        error: ""
+      };
     } catch (err) {
-      const message = err instanceof Error ? err.message : "Failed to load department admin data.";
-      setError(message);
+      return {
+        baseDept: null,
+        form: null,
+        error: err instanceof Error ? err.message : "Failed to load data."
+      };
     }
-  }, []);
+  });
+
+  // Now we use the data we just calculated above
+  const [baseDept] = useState<DepartmentData | null>(initialData.baseDept);
+  const [form, setForm] = useState<DepartmentEditableContent | null>(initialData.form);
+  const [status, setStatus] = useState("");
+  const [error] = useState(initialData.error);
 
   useEffect(() => {
     if (!form) return;

@@ -68,18 +68,22 @@ jobs:
 
       - name: Build and Test inside Docker
         run: |
-          # 1. Create a clean, lowercase tag from your branch name
-          # This turns "dept/ECE" into "dept-ece"
-          SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          IMAGE_ID="ghcr.io/${{ github.repository_owner }}/webeng-ece:$SAFE_TAG"
+          # 1. Generate the FULL lowercase Image ID
+          # This converts 'ghcr.io/DevMortimer/webeng-ece:dept-ece' 
+          # to 'ghcr.io/devmortimer/webeng-ece:dept-ece'
+          RAW_ID="ghcr.io/${{ github.repository_owner }}/webeng-ece:${{ github.ref_name }}"
+          IMAGE_ID=$(echo "$RAW_ID" | tr '/' '-' | tr '[:upper:]' '[:lower:]' | sed 's/ghcr.io-/ghcr.io\//')
           
+          # Simplified alternative if the above looks too complex:
+          # IMAGE_ID=$(echo "ghcr.io/devmortimer/webeng-ece:dept-ece")
+
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
           echo "Building image: $IMAGE_ID"
 
           # 2. Build the production-ready image
           docker build -t $IMAGE_ID .
           
-          # 3. Verify it works by running the build command inside
+          # 3. Verify build
           docker run --rm $IMAGE_ID npm run build
 
       - name: Run Trivy Security Scanner

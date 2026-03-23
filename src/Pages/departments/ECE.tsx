@@ -194,7 +194,20 @@ export default function ECEPage() {
       <section id="contact" className="max-w-6xl mx-auto px-6 pt-16">
         <div className="rounded-2xl border bg-gray-50 p-6 md:p-8">
           <h2 className="text-xl font-bold text-gray-900">Department Contact</h2>
-          <p className="mt-2 text-sm text-gray-600">Add contact details for {dept.title} in this section.</p>
+          <div className="mt-4 border-t border-gray-100 pt-4">
+            <p className="font-semibold text-gray-900">Engr. Donald M. Lapiguera</p>
+            <p className="text-sm text-gray-600">Program Chair, Electronics Engineering Department</p>
+            <p className="text-sm text-gray-600">College of Engineering, Bulacan State University</p>
+            
+            <div className="mt-2 space-y-1">
+              <p className="text-sm font-medium text-blue-600">
+                <span className="text-gray-500 font-normal">Phone:</span> 09677709894
+              </p>
+              <p className="text-sm font-medium text-blue-600">
+                <span className="text-gray-500 font-normal">Email:</span> donald.lapiguera@bulsu.edu.ph
+              </p>
+            </div>
+          </div>
         </div>
       </section>
 

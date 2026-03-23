@@ -1,0 +1,4 @@
+# .gitattributes
+.github/workflows/pipeline.yml merge=ours
+Dockerfile merge=ours
+.gitattributes merge=ours

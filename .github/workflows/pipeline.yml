@@ -1,0 +1,109 @@
+name: Group DevOps Pipeline (Vite + React)
+
+on:
+  push:
+    branches:
+      - 'dept/ECE' # Change this to your EXACT branch name
+  pull_request:
+    branches:
+      - 'dept/ECE'
+
+jobs:
+  # --- STAGE 1: QUALITY GATE (LINT & TYPES) ---
+  quality-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linting and Type Checks
+        id: checker
+        # We save the output to files so the "Feedback" step can read them if they fail
+        run: |
+          mkdir -p logs
+          npm run lint > logs/lint_error.txt 2>&1 || (echo "LINT_FAIL=true" >> $GITHUB_ENV && exit 1)
+          npx tsc -b > logs/ts_error.txt 2>&1 || (echo "TS_FAIL=true" >> $GITHUB_ENV && exit 1)
+      
+      - name: Run Smoke Tests (External)
+        run: |
+          npx vitest run > logs/test_error.txt 2>&1 || (echo "TEST_FAIL=true" >> $GITHUB_ENV && exit 1)
+
+  # --- STAGE 2: BUILD, TEST, AND DEPLOY ---
+  build-and-deploy:
+    needs: quality-gate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      pull-requests: write 
+      
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Test inside Docker
+        run: |
+          # 1. Build the production-ready image
+          docker build -t ghcr.io/${{ github.repository }}:latest .
+          
+          # 2. Run your test suite inside the container
+          # Note: If you don't have tests yet, this line might fail. 
+          # You can use 'npm run build' here instead to verify the build works inside Docker.
+          docker run --rm ghcr.io/${{ github.repository }}:latest npm run build
+
+      - name: Run Trivy Security Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ghcr.io/${{ github.repository }}:latest'
+          format: 'table'
+          exit-code: '0' 
+          severity: 'CRITICAL,HIGH'
+
+      - name: Push Docker Image
+        # Only pushes to the registry if we are on our specific branch
+        if: github.ref == 'refs/heads/dept/ECE' && success()
+        run: docker push ghcr.io/${{ github.repository }}:latest
+
+      - name: Trigger Render Deployment
+        if: github.ref == 'refs/heads/dept/ECE' && success()
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+
+  # --- STAGE 3: AUTOMATIC ERROR FEEDBACK (The "Bot") ---
+  feedback:
+    needs: [quality-gate, build-and-deploy]
+    if: failure() && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code (to access logs if needed)
+        uses: actions/checkout@v4
+
+      - name: Post Error Feedback to PR
+        uses: mshick/add-pr-comment@v2
+        with:
+          message: |
+            ❌ **DevOps Alert: Build/Test Failed for Group X**
+            
+            The pipeline was blocked. Below is a summary of the errors detected:
+            
+            > [!IMPORTANT]
+            > Please check the **Actions Tab** for the full log. 
+            > Common fixes: Run `npm run lint` or `npx tsc` locally.
+            
+            🔗 [View Detailed Logs and Error Line Numbers](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

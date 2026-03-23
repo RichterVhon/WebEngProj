@@ -3,7 +3,7 @@ name: Group DevOps Pipeline (Vite + React)
 on:
   push:
     branches:
-      - 'dept/ECE' # Change this to your EXACT branch name
+      - 'dept/ECE'
   pull_request:
     branches:
       - 'dept/ECE'
@@ -31,15 +31,12 @@ jobs:
           mkdir -p logs
           
           # 1. LINT ONLY YOUR GROUP'S FILES
-          # We use the exact casing (Pages) from your terminal
           npx eslint \
             src/Pages/admin/ECEAdmin.tsx \
             src/Pages/departments/ECE.tsx \
             --format json > logs/lint_error.txt 2>&1 || (echo "LINT_FAIL=true" >> $GITHUB_ENV && exit 1)
 
           # 2. TYPE-CHECK (The "Safe" way for shared repos)
-          # We run tsc but add '|| true'. 
-          # This allows the pipeline to continue even if other departments have broken code.
           npx tsc -b > logs/ts_error.txt 2>&1 || (echo "Classmate TS errors ignored, moving to build..." && true)
       
       - name: Run Smoke Tests (External)
@@ -68,24 +65,28 @@ jobs:
 
       - name: Build and Test inside Docker
         run: |
-          # 1. Generate the Image ID (Keep your working lowercase logic)
-          IMAGE_ID="ghcr.io/devmortimer/webeng-ece:dept-ece"
+          # 1. DYNAMIC LOWERCASE NAMING
+          # Works on your fork OR the original repo automatically
+          OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
+          SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
+          
+          # We use 'webeng-ece' as a unique package name to avoid overwriting others
+          IMAGE_ID="ghcr.io/$OWNER_LOWER/webeng-ece:$SAFE_TAG"
+          
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
+          echo "Building image: $IMAGE_ID"
 
-          # 2. Build the image (The Dockerfile handles 'npm run build' internally)
+          # 2. Build the image
           docker build -t $IMAGE_ID .
           
-          # 3. VERIFICATION: Instead of running npm, let's just check if the 
-          # web server (nginx) is accessible or if the container starts.
+          # 3. VERIFICATION (Checking for build artifacts instead of running npm)
           docker run --rm $IMAGE_ID ls /usr/share/nginx/html
 
       - name: Run Trivy Security Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          # Use the env variable we fixed earlier!
           image-ref: ${{ env.IMAGE_ID }} 
           format: 'table'
-          # This is the "Bypass" magic:
           exit-code: '0' 
           ignore-unfixed: true
           severity: 'CRITICAL,HIGH'
@@ -95,29 +96,28 @@ jobs:
         run: docker push ${{ env.IMAGE_ID }}
 
       - name: Trigger Render Deployment
-        if: github.ref == 'refs/heads/dept/ECE' && success()
+        # We check the environment variable instead of the secret directly
+        if: github.ref == 'refs/heads/dept/ECE' && success() && env.RENDER_URL != ''
+        env:
+          RENDER_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
-          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+          echo "Triggering Render Deployment..."
+          curl -X POST "$RENDER_URL"
 
-  # --- STAGE 3: AUTOMATIC ERROR FEEDBACK (The "Bot") ---
+  # --- STAGE 3: AUTOMATIC ERROR FEEDBACK ---
   feedback:
     needs: [quality-gate, build-and-deploy]
     if: failure() && github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code (to access logs if needed)
-        uses: actions/checkout@v4
-
       - name: Post Error Feedback to PR
         uses: mshick/add-pr-comment@v2
         with:
           message: |
-            ❌ **DevOps Alert: Build/Test Failed for Group X**
+            ❌ **DevOps Alert: Build/Test Failed for ECE Department**
             
-            The pipeline was blocked. Below is a summary of the errors detected:
+            The pipeline was blocked. Please check the logs for:
+            1. **Linter Errors** in ECE files.
+            2. **Docker Build** failures.
             
-            > [!IMPORTANT]
-            > Please check the **Actions Tab** for the full log. 
-            > Common fixes: Run `npm run lint` or `npx tsc` locally.
-            
-            🔗 [View Detailed Logs and Error Line Numbers](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            🔗 [View Detailed Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})

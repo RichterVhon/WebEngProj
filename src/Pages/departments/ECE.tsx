@@ -91,7 +91,8 @@ export default function ECEPage() {
 
         <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
           <Stat value={dept.programOverview.stats.nonTeaching} label="Non-Teaching Personnel" accentHex={dept.theme.accentHex} />
-          <Stat value={dept.programOverview.stats.faculty} label="Faculty" accentHex={dept.theme.accentHex} />
+          {/* <Stat value={dept.programOverview.stats.faculty} label="Faculty" accentHex={dept.theme.accentHex} /> */}
+          <Stat value="Twelve" label="Faculty" accentHex={dept.theme.accentHex} />
           <Stat value={dept.programOverview.stats.students} label="Enrolled Students" accentHex={dept.theme.accentHex} />
         </div>
       </section>

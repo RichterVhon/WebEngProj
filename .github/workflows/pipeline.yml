@@ -3,16 +3,20 @@ name: Group DevOps Pipeline (Vite + React)
 on:
   push:
     branches:
-      - '**'
+      - "**"
   pull_request:
     branches:
-      - '**'
+      - "**"
   workflow_dispatch:
 
 jobs:
   # --- STAGE 1: QUALITY GATE (LINT & TYPES) ---
   quality-gate:
     runs-on: ubuntu-latest
+    # NEW: This maps the internal steps to variables the bot can read later
+    outputs:
+      lint_output: ${{ steps.checker.outputs.lint_err }}
+      tsc_output: ${{ steps.checker.outputs.tsc_err }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -21,7 +25,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: 'npm'
+          cache: "npm"
 
       - name: Install Dependencies
         run: npm ci
@@ -30,16 +34,26 @@ jobs:
         id: checker
         run: |
           mkdir -p logs
-          
-          # 1. LINT ONLY YOUR GROUP'S FILES
-          npx eslint \
-            src/Pages/admin/ECEAdmin.tsx \
-            src/Pages/departments/ECE.tsx \
-            --format json > logs/lint_error.txt 2>&1 || (echo "LINT_FAIL=true" >> $GITHUB_ENV && exit 1)
 
-          # 2. TYPE-CHECK (The "Safe" way for shared repos)
-          npx tsc -b > logs/ts_error.txt 2>&1 || (echo "Classmate TS errors ignored, moving to build..." && true)
-      
+          # 1. Run Linting and save specific errors to the Output
+          if ! npx eslint src/Pages/admin/ECEAdmin.tsx src/Pages/departments/ECE.tsx --format stylish; then
+            LINT_MSG=$(npx eslint src/Pages/admin/ECEAdmin.tsx src/Pages/departments/ECE.tsx --format stylish | tail -n 10)
+            echo "lint_err<<EOF" >> $GITHUB_OUTPUT
+            echo "$LINT_MSG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            exit 1
+          fi
+
+          # 2. Run Type-Check and save specific errors to the Output
+          if ! npx tsc -b; then
+            TSC_MSG=$(npx tsc -b | tail -n 10)
+            echo "tsc_err<<EOF" >> $GITHUB_OUTPUT
+            echo "$TSC_MSG" >> $GITHUB_OUTPUT
+            echo "EOF" >> $GITHUB_OUTPUT
+            # We use true here so the build continues, but the bot still reports the error
+            echo "Classmate TS errors ignored, moving to build..." && true
+          fi
+
       - name: Run Smoke Tests (External)
         run: |
           npx vitest run > logs/test_error.txt 2>&1 || (echo "TEST_FAIL=true" >> $GITHUB_ENV && exit 1)
@@ -51,8 +65,8 @@ jobs:
     permissions:
       contents: read
       packages: write
-      pull-requests: write 
-      
+      pull-requests: write
+
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
@@ -66,45 +80,34 @@ jobs:
 
       - name: Build and Test inside Docker
         run: |
-          # 1. DYNAMIC LOWERCASE NAMING
-          # Works on your fork OR the original repo automatically
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          
-          # We use 'webeng-ece' as a unique package name to avoid overwriting others
           IMAGE_ID="ghcr.io/$OWNER_LOWER/webeng-ece:$SAFE_TAG"
-          
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
-          echo "Building image: $IMAGE_ID"
-
-          # 2. Build the image
           docker build -t $IMAGE_ID .
-          
-          # 3. VERIFICATION (Checking for build artifacts instead of running npm)
           docker run --rm $IMAGE_ID ls /usr/share/nginx/html
 
       - name: Run Trivy Security Scanner
         uses: aquasecurity/trivy-action@master
         with:
-          image-ref: ${{ env.IMAGE_ID }} 
-          format: 'table'
-          exit-code: '0' 
+          image-ref: ${{ env.IMAGE_ID }}
+          format: "table"
+          exit-code: "0"
           ignore-unfixed: true
-          severity: 'CRITICAL,HIGH'
+          severity: "CRITICAL,HIGH"
 
       - name: Push Docker Image
-        # Change: Only runs if the action is a PUSH to the branch, not a PR test run
         if: github.event_name == 'push' && github.ref == 'refs/heads/dept/ECE' && success()
         run: docker push ${{ env.IMAGE_ID }}
 
       - name: Trigger Render Deployment
-        # Change: Same logic here
         if: github.event_name == 'push' && github.ref == 'refs/heads/dept/ECE' && success() && env.RENDER_URL != ''
         env:
           RENDER_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           echo "Triggering Render Deployment..."
           curl -X POST "$RENDER_URL"
+
   # --- STAGE 3: AUTOMATIC ERROR FEEDBACK ---
   feedback:
     needs: [quality-gate, build-and-deploy]
@@ -116,21 +119,21 @@ jobs:
         with:
           message: |
             ❌ **ECE DevOps Gatekeeper: Build Blocked**
-            
+
             ### 🔍 What exactly went wrong?
-            
+
             **Linting/Code Style Issues:**
             ```text
-            ${{ env.LINT_ERRORS || 'No linting errors detected.' }}
+            ${{ needs.quality-gate.outputs.lint_output || 'No linting errors detected.' }}
             ```
-            
+
             **TypeScript/Type Issues:**
             ```text
-            ${{ env.TSC_ERRORS || 'No type errors detected.' }}
+            ${{ needs.quality-gate.outputs.tsc_output || 'No type errors detected.' }}
             ```
-            
+
             ### 🛠️ Next Steps
             1. Fix the lines mentioned above in your local VS Code.
             2. Push the fix to this branch.
-            
-            🔗 **[Full Debug Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
+
+            🔗 **[Full Debug Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**s

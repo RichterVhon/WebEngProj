@@ -117,11 +117,20 @@ jobs:
           message: |
             ❌ **ECE DevOps Gatekeeper: Build Blocked**
             
-            The automated tests failed. This branch **cannot be merged** into production until fixed.
+            ### 🔍 What exactly went wrong?
             
-            ### 🛠️ How to fix:
-            1. **Linting/Types:** Run `npm run lint` and `npx tsc` locally to find the exact line numbers.
-            2. **Docker:** Check the **Build and Test inside Docker** logs for container startup errors.
-            3. **Vulnerabilities:** Review the Trivy Security Scanner table for CRITICAL issues.
+            **Linting/Code Style Issues:**
+            ```text
+            ${{ env.LINT_ERRORS || 'No linting errors detected.' }}
+            ```
             
-            🔗 **[Inspect the Failure Logs Here](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**
+            **TypeScript/Type Issues:**
+            ```text
+            ${{ env.TSC_ERRORS || 'No type errors detected.' }}
+            ```
+            
+            ### 🛠️ Next Steps
+            1. Fix the lines mentioned above in your local VS Code.
+            2. Push the fix to this branch.
+            
+            🔗 **[Full Debug Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**

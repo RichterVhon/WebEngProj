@@ -34,26 +34,32 @@ jobs:
         id: checker
         run: |
           mkdir -p logs
-
-          # 1. Run Linting and save specific errors to the Output
+          
+          # 1. LINTING (Store result but don't exit yet)
+          LINT_STATUS=0
           if ! npx eslint src/Pages/admin/ECEAdmin.tsx src/Pages/departments/ECE.tsx --format stylish; then
             LINT_MSG=$(npx eslint src/Pages/admin/ECEAdmin.tsx src/Pages/departments/ECE.tsx --format stylish | tail -n 10)
             echo "lint_err<<EOF" >> $GITHUB_OUTPUT
             echo "$LINT_MSG" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            exit 1
+            LINT_STATUS=1
           fi
 
-          # 2. Run Type-Check and save specific errors to the Output
+          # 2. TYPE-CHECKING (Always runs regardless of LINT_STATUS)
+          TSC_STATUS=0
           if ! npx tsc -b; then
             TSC_MSG=$(npx tsc -b | tail -n 10)
             echo "tsc_err<<EOF" >> $GITHUB_OUTPUT
             echo "$TSC_MSG" >> $GITHUB_OUTPUT
             echo "EOF" >> $GITHUB_OUTPUT
-            # We use true here so the build continues, but the bot still reports the error
-            echo "Classmate TS errors ignored, moving to build..." && true
+            TSC_STATUS=1
           fi
 
+          # 3. FINAL DECISION (If either failed, exit 1 now)
+          if [ $LINT_STATUS -ne 0 ] || [ $TSC_STATUS -ne 0 ]; then
+            echo "One or more quality gates failed."
+            exit 1
+          fi
       - name: Run Smoke Tests (External)
         run: |
           npx vitest run > logs/test_error.txt 2>&1 || (echo "TEST_FAIL=true" >> $GITHUB_ENV && exit 1)

@@ -3,10 +3,10 @@ name: Group DevOps Pipeline (Vite + React)
 on:
   push:
     branches:
-      - 'dept/ECE'
+      - '*'
   pull_request:
     branches:
-      - 'dept/ECE'
+      - '*'
   workflow_dispatch:
 
 jobs:
@@ -93,18 +93,18 @@ jobs:
           severity: 'CRITICAL,HIGH'
 
       - name: Push Docker Image
-        if: github.ref == 'refs/heads/dept/ECE' && success()
+        # Change: Only runs if the action is a PUSH to the branch, not a PR test run
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dept/ECE' && success()
         run: docker push ${{ env.IMAGE_ID }}
 
       - name: Trigger Render Deployment
-        # We check the environment variable instead of the secret directly
-        if: github.ref == 'refs/heads/dept/ECE' && success() && env.RENDER_URL != ''
+        # Change: Same logic here
+        if: github.event_name == 'push' && github.ref == 'refs/heads/dept/ECE' && success() && env.RENDER_URL != ''
         env:
           RENDER_URL: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
           echo "Triggering Render Deployment..."
           curl -X POST "$RENDER_URL"
-
   # --- STAGE 3: AUTOMATIC ERROR FEEDBACK ---
   feedback:
     needs: [quality-gate, build-and-deploy]
@@ -115,10 +115,13 @@ jobs:
         uses: mshick/add-pr-comment@v2
         with:
           message: |
-            ❌ **DevOps Alert: Build/Test Failed for ECE Department**
+            ❌ **ECE DevOps Gatekeeper: Build Blocked**
             
-            The pipeline was blocked. Please check the logs for:
-            1. **Linter Errors** in ECE files.
-            2. **Docker Build** failures.
+            The automated tests failed. This branch **cannot be merged** into production until fixed.
             
-            🔗 [View Detailed Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+            ### 🛠️ How to fix:
+            1. **Linting/Types:** Run `npm run lint` and `npx tsc` locally to find the exact line numbers.
+            2. **Docker:** Check the **Build and Test inside Docker** logs for container startup errors.
+            3. **Vulnerabilities:** Review the Trivy Security Scanner table for CRITICAL issues.
+            
+            🔗 **[Inspect the Failure Logs Here](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**

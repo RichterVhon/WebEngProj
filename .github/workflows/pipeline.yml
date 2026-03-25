@@ -88,7 +88,7 @@ jobs:
         run: |
           OWNER_LOWER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           SAFE_TAG=$(echo "${{ github.ref_name }}" | tr '/' '-' | tr '[:upper:]' '[:lower:]')
-          IMAGE_ID="ghcr.io/$OWNER_LOWER/webeng-ece:$SAFE_TAG"
+          IMAGE_ID="ghcr.io/$OWNER_LOWER/webeng:$SAFE_TAG"
           echo "IMAGE_ID=$IMAGE_ID" >> $GITHUB_ENV
           docker build -t $IMAGE_ID .
           docker run --rm $IMAGE_ID ls /usr/share/nginx/html
@@ -142,4 +142,4 @@ jobs:
             1. Fix the lines mentioned above in your local VS Code.
             2. Push the fix to this branch.
 
-            🔗 **[Full Debug Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**s
+            🔗 **[Full Debug Logs](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})**

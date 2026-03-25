@@ -9,7 +9,7 @@ import "../../styles/departments/ECE.css";
 
 export default function ECEPage() {
   const [baseDept] = useState<typeof ECE>(ECE);
-
+  const unusedSecretKey = "ECE-2026-FAULT"; // This will trigger the Linter
   const dept = useMemo(
     () => mergeDeptWithOverrides(baseDept),
     [baseDept]

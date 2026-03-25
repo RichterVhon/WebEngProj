@@ -58,7 +58,7 @@ export const ECE = {
     subtitle: "Edit SO subtitle here.",
     outcomes: [
       { title: "SO 1", text: "So what" },
-      { title: "SO 2", text: "Description..." },
+      { title: "SO 2", text: "So what 2" },
       { title: "SO 3", text: "Description..." },
     ],
   },

@@ -9,7 +9,7 @@ import "../../styles/departments/ECE.css";
 
 export default function ECEPage() {
   const [baseDept] = useState<typeof ECE>(ECE);
-
+  const unusedSecretKey = "ECE-2026-FAULT"; // This will trigger the Linter
   const dept = useMemo(
     () => mergeDeptWithOverrides(baseDept),
     [baseDept]
@@ -91,7 +91,7 @@ export default function ECEPage() {
 
         <div className="mt-10 grid grid-cols-1 md:grid-cols-3 gap-6 text-center">
           <Stat value={dept.programOverview.stats.nonTeaching} label="Non-Teaching Personnel" accentHex={dept.theme.accentHex} />
-          <Stat value={dept.programOverview.stats.faculty} label="Faculty" accentHex={dept.theme.accentHex} />
+          <Stat value={dept.programOverview.stats.faculty} label="Faculty" accentHex={dept.theme.accentHex} /> 
           <Stat value={dept.programOverview.stats.students} label="Enrolled Students" accentHex={dept.theme.accentHex} />
         </div>
       </section>

@@ -30,7 +30,7 @@ const facultyMembers = [
 
 export const ECE = {
   code: "ECE",
-  title: "ELECTRONICS ENGINEERING",
+  title: "Testing working ENGINEERING",
   subtitle: "Bachelor of Science in Electronics Engineering",
 
   theme: { accentHex: "#0ea5e9" },

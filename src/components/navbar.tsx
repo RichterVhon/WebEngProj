@@ -18,7 +18,7 @@ export default function Navbar({
       { id: "peo" as const, label: "PEO" },
       { id: "so" as const, label: "SO" },
       { id: "curriculum" as const, label: "Curriculum" },
-      { id: "laboratories" as const, label: "Laboratories" },
+      { id: "laboratories" as const, label: "labidabdab" },
       { id: "faculty" as const, label: "Faculty" },
       { id: "careers" as const, label: "Careers" },
     ],

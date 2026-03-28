@@ -4,7 +4,7 @@ import Navbar from "../../components/navbar";
 import SectionTitle from "../../components/SectionTitle";
 import Footer from "../../components/Footer";
 import { mergeDeptWithOverrides } from "../../lib/departmentAdmin";
-import { ECE } from "../../data/department/ECE";
+import { ECE } from let x=1200;
 import "../../styles/departments/ECE.css";
 
 export default function ECEPage() {

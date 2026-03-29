@@ -221,7 +221,7 @@ function Stat({
   label,
   accentHex,
 }: {
-  value: number;
+  value: string;
   label: string;
   accentHex: string;
 }) {
